@@ -1,6 +1,10 @@
 from rest_framework import generics, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import (
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+    IsAdminUser,
+)
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
@@ -35,6 +39,16 @@ class LogoutUserView(APIView):
 
 class ProfileViewSets(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+
+        username = self.request.query_params.get("username")
+
+        if username:
+            queryset = queryset.filter(user__username__icontains=username)
+
+        return queryset
 
     def get_serializer_class(self):
         if self.action == "list":

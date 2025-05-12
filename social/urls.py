@@ -6,7 +6,8 @@ from social.views import (
     PostViewSets,
     FollowViewSets,
     CreateUserView,
-    LoginUserView, LogoutUserView,
+    LoginUserView,
+    LogoutUserView,
 )
 
 app_name = "social"
