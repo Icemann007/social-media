@@ -4,6 +4,7 @@ from django.db.models import UniqueConstraint
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import gettext as _
+from rest_framework.exceptions import ValidationError
 
 from social_media_api import settings
 
@@ -109,6 +110,14 @@ class Follow(models.Model):
             UniqueConstraint(fields=["follower", "following"], name="unique_follow")
         ]
         ordering = ["-created_at"]
+
+    def clean(self):
+        if self.follower == self.following:
+            raise ValidationError("You cannot follow yourself.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self) -> str:
         return f"{self.follower.username} follows {self.following.username}"
