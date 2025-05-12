@@ -8,7 +8,16 @@ from social.models import Profile, Post, Follow
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ["id", "email", "username", "password", "is_staff", "gender"]
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "username",
+            "password",
+            "is_staff",
+            "gender",
+        ]
         read_only_fields = ["id", "is_staff"]
         extra_kwargs = {
             "password": {
@@ -69,6 +78,8 @@ class AuthTokenSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    user = serializers.SlugRelatedField(read_only=True, slug_field="username")
+
     class Meta:
         model = Profile
         fields = [
@@ -81,8 +92,40 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
 
 
-class ProfileListSerializer(ProfileSerializer):
-    user = serializers.SlugRelatedField(read_only=True, slug_field="username")
+class ProfileMeSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email")
+    first_name = serializers.CharField(source="user.first_name")
+    last_name = serializers.CharField(source="user.last_name")
+    username = serializers.CharField(source="user.username")
+    gender = serializers.ChoiceField(
+        choices=get_user_model().GenderChoices, source="user.gender"
+    )
+
+    class Meta:
+        model = Profile
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "username",
+            "gender",
+            "bio",
+            "profile_picture",
+        ]
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop("user", {})
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        user_instance = instance.user
+        for attr, value in user_data.items():
+            if attr in ("email", "first_name", "last_name", "username", "gender"):
+                setattr(user_instance, attr, value)
+            user_instance.save()
+        return instance
 
 
 class PostSerializer(serializers.ModelSerializer):

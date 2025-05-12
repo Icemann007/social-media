@@ -1,13 +1,11 @@
-from rest_framework import generics, viewsets
+from rest_framework import generics, viewsets, status, mixins
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.permissions import (
-    IsAuthenticated,
-    IsAuthenticatedOrReadOnly,
-    IsAdminUser,
-)
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.views import APIView
+from rest_framework.viewsets import GenericViewSet
 
 from social.models import Post, Profile, Follow
 from social.serializers import (
@@ -15,8 +13,8 @@ from social.serializers import (
     PostSerializer,
     ProfileSerializer,
     FollowSerializer,
-    ProfileListSerializer,
     AuthTokenSerializer,
+    ProfileMeSerializer,
 )
 
 
@@ -37,7 +35,7 @@ class LogoutUserView(APIView):
         return Response({"detail": "Logged out successfully."})
 
 
-class ProfileViewSets(viewsets.ModelViewSet):
+class ProfileViewSets(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericViewSet):
     queryset = Profile.objects.all()
 
     def get_queryset(self):
@@ -50,9 +48,30 @@ class ProfileViewSets(viewsets.ModelViewSet):
 
         return queryset
 
+    @action(
+        detail=False,
+        methods=["GET", "PUT", "PATCH"],
+        permission_classes=[IsAuthenticated],
+    )
+    def me(self, request):
+        profile = request.user.profile
+        if request.method == "GET":
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        elif request.method == "PUT":
+            serializer = self.get_serializer(profile, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        elif request.method == "PATCH":
+            serializer = self.get_serializer(profile, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get_serializer_class(self):
-        if self.action == "list":
-            return ProfileListSerializer
+        if self.action == "me":
+            return ProfileMeSerializer
         return ProfileSerializer
 
 

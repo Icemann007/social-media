@@ -52,10 +52,12 @@ class User(AbstractUser):
         MALE = "Male"
 
     email = models.EmailField(_("email address"), unique=True)
-    gender = models.CharField(max_length=50, choices=GenderChoices.choices)
+    gender = models.CharField(
+        max_length=50, choices=GenderChoices.choices, blank=True, null=True
+    )
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username", "first_name", "last_name", "gender"]
+    REQUIRED_FIELDS = ["username"]
 
     objects = UserManager()
 
