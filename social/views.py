@@ -50,7 +50,7 @@ class ProfileViewSets(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericV
 
     @action(
         detail=False,
-        methods=["GET", "PUT", "PATCH"],
+        methods=["GET", "PUT", "PATCH", "DELETE"],
         permission_classes=[IsAuthenticated],
     )
     def me(self, request):
@@ -68,6 +68,10 @@ class ProfileViewSets(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericV
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
+        elif request.method == "DELETE":
+            user = request.user
+            user.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_serializer_class(self):
         if self.action == "me":
