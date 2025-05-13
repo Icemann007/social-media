@@ -1,5 +1,7 @@
-from rest_framework import generics, mixins, viewsets
+from django.db import IntegrityError
+from rest_framework import generics, mixins
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
@@ -81,6 +83,18 @@ class PostViewSets(
         serializer.save(author=self.request.user)
 
 
-class FollowViewSets(viewsets.ModelViewSet):
+class FollowViewSets(
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    GenericViewSet,
+):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
+
+    def perform_create(self, serializer):
+        try:
+            serializer.save(follower=self.request.user)
+        except IntegrityError:
+            raise ValidationError("You already follow this user.")
