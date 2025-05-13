@@ -15,6 +15,7 @@ from social.serializers import (
     FollowSerializer,
     AuthTokenSerializer,
     ProfileMeSerializer,
+    PostListSerializer,
 )
 
 
@@ -80,9 +81,21 @@ class ProfileViewSets(mixins.ListModelMixin, mixins.RetrieveModelMixin, GenericV
         return ProfileSerializer
 
 
-class PostViewSets(viewsets.ModelViewSet):
+class PostViewSets(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    GenericViewSet,
+):
     queryset = Post.objects.all()
-    serializer_class = PostSerializer
+
+    def get_serializer_class(self):
+        if self.action in ("list", "retrieve"):
+            return PostListSerializer
+        return PostSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
 
 class FollowViewSets(viewsets.ModelViewSet):

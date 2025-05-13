@@ -133,6 +133,20 @@ class PostSerializer(serializers.ModelSerializer):
         model = Post
         fields = [
             "id",
+            "content",
+            "image",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class PostListSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(read_only=True, slug_field="username")
+
+    class Meta:
+        model = Post
+        fields = [
+            "id",
             "author",
             "content",
             "image",
