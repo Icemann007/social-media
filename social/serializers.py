@@ -78,21 +78,6 @@ class AuthTokenSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    user = serializers.SlugRelatedField(read_only=True, slug_field="username")
-
-    class Meta:
-        model = Profile
-        fields = [
-            "id",
-            "user",
-            "bio",
-            "profile_picture",
-            "created_at",
-            "updated_at",
-        ]
-
-
-class ProfileMeSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source="user.email")
     first_name = serializers.CharField(source="user.first_name")
     last_name = serializers.CharField(source="user.last_name")
@@ -126,6 +111,38 @@ class ProfileMeSerializer(serializers.ModelSerializer):
                 setattr(user_instance, attr, value)
             user_instance.save()
         return instance
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context.get("request")
+        profile_owner = instance.user
+
+        is_owner = (
+            request
+            and request.user
+            and request.user.is_authenticated
+            and request.user == profile_owner
+        )
+
+        if not is_owner and "email" in representation:
+            del representation["email"]
+
+        return representation
+
+
+class ProfileListSerializer(serializers.ModelSerializer):
+    user = serializers.SlugRelatedField(read_only=True, slug_field="username")
+
+    class Meta:
+        model = Profile
+        fields = [
+            "id",
+            "user",
+            "bio",
+            "profile_picture",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class PostSerializer(serializers.ModelSerializer):
