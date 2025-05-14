@@ -146,18 +146,6 @@ class ProfileListSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Post
-        fields = [
-            "id",
-            "content",
-            "image",
-            "created_at",
-            "updated_at",
-        ]
-
-
-class PostListSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(read_only=True, slug_field="username")
 
     class Meta:
@@ -173,6 +161,11 @@ class PostListSerializer(serializers.ModelSerializer):
 
 
 class FollowSerializer(serializers.ModelSerializer):
+    follower = serializers.SlugRelatedField(slug_field="username", read_only=True)
+    following = serializers.SlugRelatedField(
+        slug_field="username", queryset=get_user_model().objects.all()
+    )
+
     class Meta:
         model = Follow
         fields = [
@@ -181,7 +174,6 @@ class FollowSerializer(serializers.ModelSerializer):
             "following",
             "created_at",
         ]
-        read_only_fields = ["follower"]
 
     def validate(self, data):
         request = self.context["request"]

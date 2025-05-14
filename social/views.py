@@ -1,6 +1,7 @@
 from django.db import IntegrityError
-from rest_framework import generics, mixins
+from rest_framework import generics, mixins, status
 from rest_framework.authtoken.views import ObtainAuthToken
+from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,14 +10,13 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
 from social.models import Post, Profile, Follow
-from social.permissions import IsProfileOwnerOrReadOnly
+from social.permissions import IsOwnerAttributeOrReadOnly, IsOwner
 from social.serializers import (
     UserSerializer,
     PostSerializer,
     ProfileSerializer,
     FollowSerializer,
     AuthTokenSerializer,
-    PostListSerializer,
     ProfileListSerializer,
 )
 
@@ -47,7 +47,7 @@ class ProfileViewSets(
     GenericViewSet,
 ):
     queryset = Profile.objects.all()
-    permission_classes = [IsProfileOwnerOrReadOnly]
+    permission_classes = [IsOwnerAttributeOrReadOnly]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -67,34 +67,63 @@ class ProfileViewSets(
 
 
 class PostViewSets(
-    mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
     GenericViewSet,
 ):
     queryset = Post.objects.all()
-
-    def get_serializer_class(self):
-        if self.action in ("list", "retrieve"):
-            return PostListSerializer
-        return PostSerializer
+    serializer_class = PostSerializer
+    owner_attr = "author"
+    permission_classes = [IsOwnerAttributeOrReadOnly]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
+    def my_posts(self, request):
+        user = self.request.user
+        posts = Post.objects.filter(author__username=user)
+        serializer = self.get_serializer(posts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
+    def following(self, request):
+        following_users = Follow.objects.filter(follower=request.user).values_list(
+            "following", flat=True
+        )
+        posts = Post.objects.filter(author__in=following_users)
+        serializer = self.get_serializer(posts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class FollowViewSets(
     mixins.CreateModelMixin,
     mixins.DestroyModelMixin,
-    mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
+    permission_classes = [IsOwner]
 
     def perform_create(self, serializer):
         try:
             serializer.save(follower=self.request.user)
         except IntegrityError:
             raise ValidationError("You already follow this user.")
+
+    @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
+    def followers(self, request):
+        user = request.user
+        queryset = Follow.objects.filter(following=user)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
+    def following(self, request):
+        user = request.user
+        queryset = Follow.objects.filter(follower=user)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
