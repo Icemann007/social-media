@@ -1,4 +1,6 @@
 from django.db import IntegrityError
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import generics, mixins, status
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
@@ -65,6 +67,19 @@ class ProfileViewSets(
         user = instance.user
         user.delete()
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "username",
+                type=OpenApiTypes.STR,
+                description="Filter by user username (ex. &username=user)",
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        """Get list of users profiles."""
+        return super().list(request, *args, **kwargs)
+
 
 class PostViewSets(
     mixins.UpdateModelMixin,
@@ -81,6 +96,7 @@ class PostViewSets(
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    @extend_schema(description="Return posts created by the currently authenticated user.")
     @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def my_posts(self, request):
         user = self.request.user
@@ -88,6 +104,7 @@ class PostViewSets(
         serializer = self.get_serializer(posts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(description="Return posts from users that the current user is following.")
     @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def following(self, request):
         following_users = Follow.objects.filter(follower=request.user).values_list(
@@ -114,6 +131,7 @@ class FollowViewSets(
         except IntegrityError:
             raise ValidationError("You already follow this user.")
 
+    @extend_schema(description="Return a list of users who follow the current user.")
     @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def followers(self, request):
         user = request.user
@@ -121,6 +139,7 @@ class FollowViewSets(
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(description="Return a list of users the current user is following.")
     @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def following(self, request):
         user = request.user
