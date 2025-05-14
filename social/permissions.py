@@ -1,9 +1,22 @@
-from rest_framework import permissions
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
-class IsProfileOwnerOrReadOnly(permissions.BasePermission):
+class IsOwnerAttributeOrReadOnly(BasePermission):
+    owner_attr = "user"
+
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return True
+        return request.user and request.user.is_authenticated
+
     def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
+        if request.method in SAFE_METHODS:
             return True
 
-        return obj.user == request.user
+        owner_field = getattr(view, "owner_attr", self.owner_attr)
+        return getattr(obj, owner_field) == request.user
+
+
+class IsOwner(IsOwnerAttributeOrReadOnly):
+    def has_object_permission(self, request, view, obj):
+        return obj.follower == request.user
