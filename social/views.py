@@ -1,7 +1,7 @@
 from django.db import IntegrityError
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from rest_framework import generics, mixins, status
+from rest_framework import generics, mixins, status, viewsets
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -81,36 +81,56 @@ class ProfileViewSets(
         return super().list(request, *args, **kwargs)
 
 
-class PostViewSets(
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.CreateModelMixin,
-    mixins.DestroyModelMixin,
-    GenericViewSet,
-):
+class PostViewSets(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     owner_attr = "author"
     permission_classes = [IsOwnerAttributeOrReadOnly]
 
+    def _filter_by_hashtag(self, queryset):
+        hashtag = self.request.query_params.get("hashtag")
+        if hashtag:
+            queryset = queryset.filter(hashtags__icontains=hashtag)
+        return queryset
+
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    @extend_schema(description="Return posts created by the currently authenticated user.")
+    @extend_schema(
+        description="Return posts created by the currently authenticated user.",
+        parameters=[
+            OpenApiParameter(
+                "hashtag",
+                type=OpenApiTypes.STR,
+                description="Filter by post hashtag (ex. &hashtag=hashtag)",
+            ),
+        ],
+    )
     @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def my_posts(self, request):
         user = self.request.user
         posts = Post.objects.filter(author__username=user)
+        posts = self._filter_by_hashtag(posts)
         serializer = self.get_serializer(posts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(description="Return posts from users that the current user is following.")
+    @extend_schema(
+        description="Return posts from users that the current user is following.",
+        parameters=[
+            OpenApiParameter(
+                "hashtag",
+                type=OpenApiTypes.STR,
+                description="Filter by post hashtag (ex. &hashtag=hashtag)",
+            ),
+        ],
+    )
     @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
     def following(self, request):
         following_users = Follow.objects.filter(follower=request.user).values_list(
             "following", flat=True
         )
         posts = Post.objects.filter(author__in=following_users)
+        posts = self._filter_by_hashtag(posts)
         serializer = self.get_serializer(posts, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -123,7 +143,13 @@ class FollowViewSets(
 ):
     queryset = Follow.objects.all()
     serializer_class = FollowSerializer
-    permission_classes = [IsOwner]
+
+    def get_permissions(self):
+        if self.action in ["retrieve", "destroy"]:
+            permission_classes = [IsAuthenticated, IsOwner]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
 
     def perform_create(self, serializer):
         try:
