@@ -1,3 +1,4 @@
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
@@ -19,4 +20,12 @@ class IsOwnerAttributeOrReadOnly(BasePermission):
 
 class IsOwner(IsOwnerAttributeOrReadOnly):
     def has_object_permission(self, request, view, obj):
-        return obj.follower == request.user
+        if not request.user.is_authenticated:
+            raise PermissionDenied("Please log in to access this resource.")
+
+        if obj.follower != request.user:
+            raise PermissionDenied(
+                "You do not have permission to access this follow relationship."
+            )
+
+        return True
