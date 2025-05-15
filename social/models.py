@@ -1,8 +1,12 @@
+import pathlib
+import uuid
+
 from django.contrib.auth.models import AbstractUser, UserManager as DjangoUserManager
 from django.db import models
 from django.db.models import UniqueConstraint
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils.text import slugify
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
@@ -65,17 +69,35 @@ class User(AbstractUser):
         return self.username
 
 
+def profile_image_path(instance: "Profile", filename: str) -> pathlib.Path:
+    filename = (
+        f"{slugify(instance.user.username)}-{uuid.uuid4()}"
+        + pathlib.Path(filename).suffix
+    )
+    return pathlib.Path("upload/profiles/") / pathlib.Path(filename)
+
+
 class Profile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
     bio = models.TextField(max_length=500, null=True, blank=True)
-    profile_picture = models.ImageField(null=True, blank=True)
+    profile_picture = models.ImageField(
+        null=True, blank=True, upload_to=profile_image_path
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
         return f"{self.user.username}"
+
+
+def post_image_path(instance: "Post", filename: str) -> pathlib.Path:
+    filename = (
+        f"{slugify(instance.author.username)}-{uuid.uuid4()}"
+        + pathlib.Path(filename).suffix
+    )
+    return pathlib.Path("upload/posts/") / pathlib.Path(filename)
 
 
 class Post(models.Model):
@@ -85,7 +107,7 @@ class Post(models.Model):
         related_name="posts",
     )
     content = models.TextField()
-    image = models.ImageField(null=True, blank=True)
+    image = models.ImageField(null=True, blank=True, upload_to=post_image_path)
     hashtags = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
