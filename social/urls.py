@@ -2,9 +2,9 @@ from django.urls import path, include
 from rest_framework import routers
 
 from social.views import (
-    ProfileViewSets,
-    PostViewSets,
-    FollowViewSets,
+    ProfileViewSet,
+    PostViewSet,
+    FollowViewSet,
     CreateUserView,
     LoginUserView,
     LogoutUserView,
@@ -14,9 +14,9 @@ app_name = "social"
 
 router = routers.DefaultRouter()
 
-router.register("profiles", ProfileViewSets)
-router.register("posts", PostViewSets)
-router.register("follows", FollowViewSets)
+router.register("profiles", ProfileViewSet)
+router.register("posts", PostViewSet)
+router.register("follows", FollowViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),

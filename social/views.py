@@ -41,7 +41,7 @@ class LogoutUserView(APIView):
         return Response({"detail": "Logged out successfully."})
 
 
-class ProfileViewSets(
+class ProfileViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
@@ -81,7 +81,7 @@ class ProfileViewSets(
         return super().list(request, *args, **kwargs)
 
 
-class PostViewSets(viewsets.ModelViewSet):
+class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     owner_attr = "author"
@@ -135,7 +135,7 @@ class PostViewSets(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class FollowViewSets(
+class FollowViewSet(
     mixins.CreateModelMixin,
     mixins.DestroyModelMixin,
     mixins.RetrieveModelMixin,
